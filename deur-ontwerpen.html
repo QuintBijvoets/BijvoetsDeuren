@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Ontwerp zelf je nieuwe voordeur in 2D en 3D. Kies glasvakken, glaslatten, beslag en kleur en bespreek daarna het ontwerp met Bijvoets Deuren.">
+  <meta name="description" content="Ontwerp zelf je Bijvoets voordeur. Kies glasvakken, glaslatten, beslag, kleur en ontvang direct een globale prijsindicatie.">
   <meta name="theme-color" content="#063b7a">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'">
@@ -13,7 +13,7 @@
   <meta property="og:locale" content="nl_NL">
   <meta property="og:site_name" content="Bijvoets Deuren">
   <meta property="og:title" content="Ontwerp zelf je nieuwe voordeur">
-  <meta property="og:description" content="Kies glasvakken, glaslatten, beslag en kleur in de 2D- en 3D-deurontwerper.">
+  <meta property="og:description" content="Kies glasvakken, glaslatten, beslag en kleur in de deurontwerper van Bijvoets Deuren.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://bijvoetsdeuren.nl/deur-ontwerpen.html">
   <meta property="og:image" content="https://bijvoetsdeuren.nl/assets/og.png?v=2">
@@ -21,9 +21,9 @@
   <meta name="twitter:card" content="summary_large_image">
   <title>Nieuwe voordeur ontwerpen | Bijvoets Deuren</title>
   <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="pages.css?v=3">
+  <link rel="stylesheet" href="pages.css?v=7">
   <script src="script.js" defer></script>
-  <script src="door-designer.js?v=3" defer></script>
+  <script src="door-designer.js?v=7" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Direct naar de inhoud</a>
@@ -41,7 +41,7 @@
   <main id="main">
     <section class="page-hero designer-hero">
       <div class="shell page-hero-grid">
-        <div class="reveal"><p class="eyebrow">2D / 3D deurontwerper</p><h1>Geef je voordeur zelf <em>vorm.</em></h1></div>
+        <div class="reveal"><p class="eyebrow">Deurontwerper</p><h1>Geef je voordeur zelf <em>vorm.</em></h1></div>
         <p class="page-hero-intro reveal">Teken glasvakken, laat ze automatisch uitlijnen en kies glaslatten, kleur en beslag. De prijsindicatie verandert direct mee.</p>
       </div>
     </section>
@@ -90,6 +90,62 @@
               </label>
             </div>
             <p class="designer-help">Alle glaskeuzes zijn gebaseerd op isolerend HR++ veiligheidsglas. De definitieve opbouw wordt technisch gecontroleerd.</p>
+          </fieldset>
+
+          <fieldset class="designer-fieldset">
+            <legend>Materiaal en afmetingen</legend>
+            <div class="designer-field-grid">
+              <label>Materiaal
+                <select data-setting="doorMaterial" disabled>
+                  <option value="aluplex">Aluplex</option>
+                </select>
+              </label>
+              <label>Hoogte deurblad
+                <span class="input-with-unit">
+                  <input type="number" min="180" max="250" step="1" value="220" inputmode="numeric" data-setting="doorHeightCm" aria-describedby="door-height-help">
+                  <span>cm</span>
+                </span>
+              </label>
+              <label>Dikte deurblad
+                <select data-setting="doorThickness">
+                  <option value="40">40 mm</option>
+                  <option value="54">54 mm · + € 100</option>
+                </select>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset class="designer-fieldset">
+            <legend>Sluiting</legend>
+            <div class="designer-field-grid designer-field-grid-single">
+              <label>Type sluiting
+                <select data-setting="lockingSystem" disabled>
+                  <option value="threePoint">Driepuntsluiting · standaard</option>
+                </select>
+              </label>
+            </div>
+            <div class="standard-feature">
+              <strong>Driepuntsluiting · standaard inbegrepen</strong>
+              <span>Vaste keuze, inclusief montage en verwerkt in de globale prijs.</span>
+            </div>
+          </fieldset>
+
+          <fieldset class="designer-fieldset">
+            <legend>Dorpelsystemen</legend>
+            <div class="standard-feature">
+              <strong>Weldorpel · standaard</strong>
+              <span>De aflopende lekdorpel aan de buitenzijde voert regenwater af. Glasvakken blijven automatisch boven deze vaste zone.</span>
+            </div>
+            <div class="standard-feature standard-feature-secondary">
+              <div class="standard-feature-heading">
+                <strong>Valdorpel · standaard</strong>
+                <span class="info-tip-wrap">
+                  <button class="info-tip" type="button" aria-describedby="valdorpel-uitleg">i</button>
+                  <span class="info-tooltip" id="valdorpel-uitleg" role="tooltip">De valdorpel wordt in de onderzijde van het deurblad gefreesd en sluit automatisch wanneer de deur dichtgaat.</span>
+                </span>
+              </div>
+              <span>Automatische kierafdichting tegen tocht en geluid onder de deur.</span>
+            </div>
           </fieldset>
 
           <fieldset class="designer-fieldset">
@@ -175,7 +231,7 @@
               <button type="button" class="tool-button" data-action="distribute">Verdeel gelijk</button>
             </div>
             <label class="snap-toggle"><input type="checkbox" data-setting="snap" checked> Slim uitlijnen en gelijke marges</label>
-            <p class="designer-help" data-designer-help>Selecteer ‘Teken glasvak’ en sleep een rechthoek op de deur. De rode hulplijnen helpen met uitlijnen.</p>
+            <p class="designer-help" data-designer-help>Selecteer ‘Teken glasvak’ en sleep een rechthoek. Hulplijnen én de weldorpelzone bewaken de uitlijning.</p>
           </fieldset>
 
           <fieldset class="designer-fieldset dimension-fields" data-dimensions disabled>
@@ -191,33 +247,29 @@
 
         <div class="designer-workspace">
           <div class="workspace-toolbar">
-            <div><strong>Voorbeeld</strong><span data-view-label>Vooraanzicht</span></div>
-            <div class="view-switch" aria-label="Weergave kiezen">
-              <button type="button" class="is-active" data-view="2d" aria-pressed="true">2D</button>
-              <button type="button" data-view="3d" aria-pressed="false">3D</button>
-            </div>
+            <div><strong>Deurontwerp</strong><span>Vooraanzicht</span></div>
           </div>
 
-          <div class="designer-stage" data-stage data-view="2d">
+          <div class="designer-stage" data-stage>
             <div class="stage-grid" aria-hidden="true"></div>
             <div class="door-preview" data-door-preview role="img" aria-label="Voorbeeld van de samengestelde deur">
               <div class="door-surface" data-door-surface>
                 <div class="glass-layer" data-glass-layer></div>
                 <div class="door-hinges" data-hinges aria-hidden="true"></div>
                 <div class="door-hardware hardware-bar finish-steel" data-hardware aria-hidden="true"><span></span></div>
+                <div class="door-weatherbar" aria-hidden="true"></div>
                 <div class="door-lock-edge" aria-hidden="true"></div>
                 <div class="snap-guide snap-guide-x" data-guide-x aria-hidden="true"></div>
                 <div class="snap-guide snap-guide-y" data-guide-y aria-hidden="true"></div>
               </div>
-              <div class="door-depth" aria-hidden="true"></div>
             </div>
-            <canvas class="door-render-canvas" data-render-canvas width="900" height="1000" role="img" aria-label="Realistische driedimensionale weergave van de samengestelde deur"></canvas>
-            <p class="stage-instruction" data-stage-instruction>Sleep een glasvak om het te verplaatsen. Sleep de hoek om het formaat te wijzigen.</p>
+            <canvas data-render-canvas width="900" height="1100" hidden aria-hidden="true"></canvas>
+            <p class="stage-instruction" data-stage-instruction>Sleep een glasvak om het te verplaatsen. De onderste weldorpelzone blijft automatisch vrij.</p>
           </div>
 
           <div class="designer-summary" aria-live="polite">
-            <div><span>Indicatie vanaf</span><strong data-total-price>€ 1.790</strong><small>Fictieve prijs, inclusief btw en exclusief montage.</small></div>
-            <dl><div><dt>Deur</dt><dd data-summary-door>Grijze grondverf</dd></div><div><dt>Glas</dt><dd data-summary-glass>Geen glasvakken</dd></div><div><dt>Beslag</dt><dd data-summary-hardware>Stang · RVS</dd></div><div><dt>Scharnieren</dt><dd data-summary-hinges>Platkop · RVS · dievenklauw</dd></div></dl>
+            <div><span>Globale prijs</span><strong data-total-price>€ 4.235</strong><small>Inclusief 21% btw en montage.</small></div>
+            <dl><div><dt>Deur</dt><dd data-summary-door>Grijze grondverf · weldorpel + valdorpel</dd></div><div><dt>Materiaal en maat</dt><dd data-summary-size>Aluplex · 220 cm · 40 mm</dd></div><div><dt>Glas</dt><dd data-summary-glass>Geen glasvakken</dd></div><div><dt>Beslag</dt><dd data-summary-hardware>Stang · RVS</dd></div><div><dt>Sluiting</dt><dd data-summary-lock>Driepuntsluiting · incl. montage</dd></div><div><dt>Scharnieren</dt><dd data-summary-hinges>Platkop · RVS · dievenklauw</dd></div></dl>
             <div class="designer-share-actions">
               <button class="button button-primary designer-whatsapp" type="button" data-designer-whatsapp>Bespreek dit ontwerp</button>
               <button class="button button-secondary designer-download" type="button" data-download-render>Download deurafbeelding</button>
