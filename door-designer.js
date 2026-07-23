@@ -497,7 +497,385 @@
     const points = projectedPolygon([
       doorSurfacePoint(pane.x, pane.y, z),
       doorSurfacePoint(pane.x + pane.width, pane.y, z),
-      doorSurfa…3948 tokens truncated… * 2));
+      doorSurfacePoint(pane.x + pane.width, pane.y + pane.height, z),
+      doorSurfacePoint(pane.x, pane.y + pane.height, z),
+    ]);
+    polygon(context, points);
+    const colors = glassColors();
+    const gradient = context.createLinearGradient(points[0].x, points[0].y, points[2].x, points[2].y);
+    gradient.addColorStop(0, backFace ? colors[1] : colors[0]);
+    gradient.addColorStop(.52, backFace ? colors[0] : colors[1]);
+    gradient.addColorStop(1, colors[0]);
+    context.fillStyle = gradient;
+    context.fill();
+
+    context.save();
+    polygon(context, points);
+    context.clip();
+    if (state.glassTint !== 'frosted') {
+      context.globalAlpha = state.glassTint === 'smoke' ? .2 : .38;
+      context.fillStyle = '#f5fdff';
+      context.beginPath();
+      context.moveTo(points[0].x - 20, points[0].y + 18);
+      context.lineTo(points[0].x + ((points[1].x - points[0].x) * .43), points[0].y - 8);
+      context.lineTo(points[2].x - ((points[2].x - points[3].x) * .18), points[2].y - 46);
+      context.lineTo(points[3].x - 12, points[3].y - 12);
+      context.closePath();
+      context.fill();
+      context.globalAlpha = 1;
+    }
+    if (state.glassTint === 'reeded') {
+      context.strokeStyle = 'rgba(255,255,255,.52)';
+      context.lineWidth = 1.4;
+      for (let offset = 25; offset < pane.width; offset += 45) {
+        const top = projectPoint(doorSurfacePoint(pane.x + offset, pane.y, z));
+        const bottom = projectPoint(doorSurfacePoint(pane.x + offset, pane.y + pane.height, z));
+        context.beginPath();
+        context.moveTo(top.x, top.y);
+        context.lineTo(bottom.x, bottom.y);
+        context.stroke();
+      }
+    }
+    context.restore();
+
+    const beadColor = state.beadStyle === 'steel'
+      ? '#626d72'
+      : state.doorFinish === 'anthracite' ? '#343c40' : '#f1f0eb';
+    polygon(context, points);
+    context.shadowColor = 'rgba(5,12,16,.5)';
+    context.shadowBlur = 7;
+    context.shadowOffsetY = 3;
+    context.strokeStyle = beadColor;
+    context.lineWidth = state.beadStyle === 'steel' ? 5 : state.beadStyle === 'classic' ? 12 : 8;
+    context.stroke();
+    context.shadowColor = 'transparent';
+
+    if (state.beadStyle === 'classic' || state.glassTint === 'frostedBorder') {
+      const inset = state.glassTint === 'frostedBorder' ? Math.min(76, pane.width * .15, pane.height * .15) : 22;
+      const inner = projectedPolygon([
+        doorSurfacePoint(pane.x + inset, pane.y + inset, z + (z === 0 ? .001 : -.001)),
+        doorSurfacePoint(pane.x + pane.width - inset, pane.y + inset, z + (z === 0 ? .001 : -.001)),
+        doorSurfacePoint(pane.x + pane.width - inset, pane.y + pane.height - inset, z + (z === 0 ? .001 : -.001)),
+        doorSurfacePoint(pane.x + inset, pane.y + pane.height - inset, z + (z === 0 ? .001 : -.001)),
+      ]);
+      polygon(context, inner);
+      context.lineWidth = state.glassTint === 'frostedBorder' ? 3 : 2;
+      context.strokeStyle = state.glassTint === 'frostedBorder' ? 'rgba(241,246,244,.86)' : 'rgba(77,88,92,.52)';
+      context.stroke();
+    }
+  }
+
+  function drawWeatherbarOnDoor(context) {
+    const points = projectedPolygon([
+      doorSurfacePoint(45, WELDORPEL_TOP, .018),
+      doorSurfacePoint(955, WELDORPEL_TOP, .018),
+      doorSurfacePoint(955, WELDORPEL_TOP + WELDORPEL_HEIGHT, .038),
+      doorSurfacePoint(45, WELDORPEL_TOP + WELDORPEL_HEIGHT, .038),
+    ]);
+    context.save();
+    polygon(context, points);
+    context.shadowColor = 'rgba(0,0,0,.58)';
+    context.shadowBlur = 12;
+    context.shadowOffsetY = 8;
+    context.fillStyle = getDoorColors()[2];
+    context.fill();
+    context.restore();
+
+    polygon(context, points);
+    const gradient = context.createLinearGradient(points[0].x, points[0].y, points[3].x, points[3].y);
+    const colors = getDoorColors();
+    gradient.addColorStop(0, colors[1]);
+    gradient.addColorStop(.3, colors[2]);
+    gradient.addColorStop(.72, colors[3]);
+    gradient.addColorStop(1, '#252d31');
+    context.fillStyle = gradient;
+    context.fill();
+    context.lineWidth = 1.3;
+    context.strokeStyle = 'rgba(23,33,37,.58)';
+    context.stroke();
+
+    const dripStart = projectPoint(doorSurfacePoint(85, WELDORPEL_TOP + WELDORPEL_HEIGHT, .041));
+    const dripEnd = projectPoint(doorSurfacePoint(915, WELDORPEL_TOP + WELDORPEL_HEIGHT, .041));
+    context.lineCap = 'round';
+    context.lineWidth = 3.5;
+    context.strokeStyle = 'rgba(14,20,22,.78)';
+    context.beginPath();
+    context.moveTo(dripStart.x, dripStart.y + 2);
+    context.lineTo(dripEnd.x, dripEnd.y + 2);
+    context.stroke();
+    context.lineCap = 'butt';
+  }
+
+  function drawHardwareOnDoor(context, backFace = false) {
+    const hardwareX = getHardwareCenter();
+    const z = backFace ? -selectedDoorThicknessMeters() - .014 : .022;
+    const center = projectPoint(doorSurfacePoint(hardwareX, 1110, z));
+    const finish = finishGradient(context, state.hardwareFinish, center.x - 22, center.x + 26);
+
+    if (backFace) {
+      const leverEnd = projectPoint(doorSurfacePoint(hardwareX + (state.hingeSide === 'left' ? 145 : -145), 1110, z));
+      context.lineCap = 'round';
+      context.lineWidth = 10;
+      context.strokeStyle = finish;
+      context.beginPath();
+      context.moveTo(center.x, center.y);
+      context.lineTo(leverEnd.x, leverEnd.y);
+      context.stroke();
+      context.lineCap = 'butt';
+      return;
+    }
+
+    if (state.hardwareType === 'bar') {
+      const top = projectPoint(doorSurfacePoint(hardwareX, 625, z));
+      const bottom = projectPoint(doorSurfacePoint(hardwareX, 1590, z));
+      context.lineCap = 'round';
+      context.lineWidth = 15;
+      context.strokeStyle = 'rgba(12,20,24,.38)';
+      context.beginPath();
+      context.moveTo(top.x + 3, top.y + 4);
+      context.lineTo(bottom.x + 3, bottom.y + 4);
+      context.stroke();
+      context.lineWidth = 10;
+      context.strokeStyle = finish;
+      context.beginPath();
+      context.moveTo(top.x, top.y);
+      context.lineTo(bottom.x, bottom.y);
+      context.stroke();
+      [top, bottom].forEach((mount) => {
+        context.beginPath();
+        context.arc(mount.x, mount.y, 8, 0, Math.PI * 2);
+        context.fillStyle = finishGradient(context, state.hardwareFinish, mount.x - 8, mount.x + 8);
+        context.fill();
+      });
+      context.lineCap = 'butt';
+    } else if (state.hardwareType === 'knob') {
+      const radial = context.createRadialGradient(center.x - 7, center.y - 8, 2, center.x, center.y, 21);
+      radial.addColorStop(0, '#fff');
+      radial.addColorStop(.38, state.hardwareFinish === 'brass' ? '#e1bd5b' : '#b8c0c4');
+      radial.addColorStop(1, state.hardwareFinish === 'black' ? '#080a0b' : '#39454b');
+      context.beginPath();
+      context.arc(center.x, center.y, 21, 0, Math.PI * 2);
+      context.fillStyle = radial;
+      context.fill();
+    } else {
+      const leverEnd = projectPoint(doorSurfacePoint(hardwareX + (state.hingeSide === 'left' ? 175 : -175), 1110, z));
+      context.lineCap = 'round';
+      context.lineWidth = 12;
+      context.strokeStyle = finish;
+      context.beginPath();
+      context.moveTo(center.x, center.y);
+      context.lineTo(leverEnd.x, leverEnd.y);
+      context.stroke();
+      context.lineCap = 'butt';
+    }
+
+    const cylinder = projectPoint(doorSurfacePoint(hardwareX, 1245, z));
+    context.beginPath();
+    context.arc(cylinder.x, cylinder.y, 9, 0, Math.PI * 2);
+    context.fillStyle = finishGradient(context, state.hardwareFinish, cylinder.x - 9, cylinder.x + 9);
+    context.fill();
+    context.lineWidth = 1.5;
+    context.strokeStyle = 'rgba(18,27,32,.66)';
+    context.stroke();
+  }
+
+  function drawDoorFront(context) {
+    const points = [
+      doorSurfacePoint(0, 0, 0),
+      doorSurfacePoint(DOOR_WIDTH, 0, 0),
+      doorSurfacePoint(DOOR_WIDTH, DOOR_HEIGHT, 0),
+      doorSurfacePoint(0, DOOR_HEIGHT, 0),
+    ];
+    const projected = projectedPolygon(points);
+    context.save();
+    polygon(context, projected);
+    context.shadowColor = 'rgba(0,0,0,.5)';
+    context.shadowBlur = 18;
+    context.shadowOffsetX = 9;
+    context.shadowOffsetY = 10;
+    context.fillStyle = getDoorColors()[2];
+    context.fill();
+    context.restore();
+
+    polygon(context, projected);
+    const colors = getDoorColors();
+    const gradient = context.createLinearGradient(projected[0].x, projected[0].y, projected[3].x, projected[3].y);
+    gradient.addColorStop(0, colors[1]);
+    gradient.addColorStop(.5, colors[2]);
+    gradient.addColorStop(1, colors[0]);
+    context.fillStyle = gradient;
+    context.fill();
+    drawWoodGrain(context, 0);
+
+    polygon(context, projected);
+    context.lineWidth = 2.2;
+    context.strokeStyle = 'rgba(23,34,40,.74)';
+    context.stroke();
+    state.panes.forEach((pane) => drawGlassOnDoor(context, pane, .006));
+    drawWeatherbarOnDoor(context);
+    drawHardwareOnDoor(context);
+  }
+
+  function drawDoorBack(context) {
+    const points = [
+      doorSurfacePoint(0, 0, -selectedDoorThicknessMeters()),
+      doorSurfacePoint(DOOR_WIDTH, 0, -selectedDoorThicknessMeters()),
+      doorSurfacePoint(DOOR_WIDTH, DOOR_HEIGHT, -selectedDoorThicknessMeters()),
+      doorSurfacePoint(0, DOOR_HEIGHT, -selectedDoorThicknessMeters()),
+    ];
+    const projected = projectedPolygon(points);
+    polygon(context, projected);
+    const colors = getDoorColors();
+    const gradient = context.createLinearGradient(projected[0].x, projected[0].y, projected[3].x, projected[3].y);
+    gradient.addColorStop(0, colors[1]);
+    gradient.addColorStop(.55, colors[2]);
+    gradient.addColorStop(1, colors[0]);
+    context.fillStyle = gradient;
+    context.fill();
+    drawWoodGrain(context, -selectedDoorThicknessMeters());
+    polygon(context, projected);
+    context.lineWidth = 2;
+    context.strokeStyle = 'rgba(20,30,35,.72)';
+    context.stroke();
+    state.panes.forEach((pane) => drawGlassOnDoor(context, pane, -selectedDoorThicknessMeters() - .004, true));
+    drawHardwareOnDoor(context, true);
+  }
+
+  function drawDoorEdge(context, points, latchEdge = false) {
+    const projected = fillProjectedFace(context, points, ['#6f777b', '#d1d1cc', '#8a9194', '#545d61'], 'rgba(26,35,39,.7)', 1.4);
+    context.save();
+    polygon(context, projected);
+    context.clip();
+    context.globalAlpha = .22;
+    for (let index = 0; index < 9; index += 1) {
+      context.fillStyle = index % 2 ? '#fff' : '#27343a';
+      context.fillRect(0, projected[0].y + (index * 14), renderCanvas.width, 1);
+    }
+    context.restore();
+
+    if (!latchEdge) return;
+    const plate = [
+      doorWorldPoint(1, .74, -.008),
+      doorWorldPoint(1, .74, -selectedDoorThicknessMeters() + .008),
+      doorWorldPoint(1, 1.46, -selectedDoorThicknessMeters() + .008),
+      doorWorldPoint(1, 1.46, -.008),
+    ];
+    const plateProjected = projectedPolygon(plate);
+    polygon(context, plateProjected);
+    context.fillStyle = finishGradient(context, 'steel', plateProjected[0].x, plateProjected[1].x);
+    context.fill();
+    context.lineWidth = 1;
+    context.strokeStyle = 'rgba(27,35,39,.66)';
+    context.stroke();
+
+    const latch = projectPoint(doorWorldPoint(1.002, 1.08, -selectedDoorThicknessMeters() * .5));
+    context.beginPath();
+    context.arc(latch.x, latch.y, 5, 0, Math.PI * 2);
+    context.fillStyle = '#5d676b';
+    context.fill();
+  }
+
+  function drawDoorLeaf(context) {
+    const front = [
+      doorWorldPoint(0, selectedDoorHeightMeters(), 0),
+      doorWorldPoint(1, selectedDoorHeightMeters(), 0),
+      doorWorldPoint(1, 0, 0),
+      doorWorldPoint(0, 0, 0),
+    ];
+    const back = [
+      doorWorldPoint(0, selectedDoorHeightMeters(), -selectedDoorThicknessMeters()),
+      doorWorldPoint(1, selectedDoorHeightMeters(), -selectedDoorThicknessMeters()),
+      doorWorldPoint(1, 0, -selectedDoorThicknessMeters()),
+      doorWorldPoint(0, 0, -selectedDoorThicknessMeters()),
+    ];
+    const hingeEdge = [front[0], front[3], back[3], back[0]];
+    const latchEdge = [front[1], back[1], back[2], front[2]];
+    const topEdge = [front[0], back[0], back[1], front[1]];
+    const bottomEdge = [front[3], front[2], back[2], back[3]];
+    const faces = [
+      { points: front, draw: () => drawDoorFront(context) },
+      { points: back, draw: () => drawDoorBack(context) },
+      { points: hingeEdge, draw: () => drawDoorEdge(context, hingeEdge) },
+      { points: latchEdge, draw: () => drawDoorEdge(context, latchEdge, true) },
+      { points: topEdge, draw: () => drawDoorEdge(context, topEdge) },
+      { points: bottomEdge, draw: () => drawDoorEdge(context, bottomEdge) },
+    ];
+    faces
+      .sort((a, b) => {
+        const depthA = a.points.reduce((sum, point) => sum + cameraDepth(point), 0) / a.points.length;
+        const depthB = b.points.reduce((sum, point) => sum + cameraDepth(point), 0) / b.points.length;
+        return depthB - depthA;
+      })
+      .forEach((face) => face.draw());
+  }
+
+  function drawHingesInScene(context) {
+    if (state.hingeStyle === 'concealed') return;
+    const count = Number.parseInt(state.hingeCount, 10);
+    const doorHeight = selectedDoorHeightMeters();
+    for (let index = 0; index < count; index += 1) {
+      const y = (doorHeight * .16) + (((doorHeight * .68) / Math.max(count - 1, 1)) * index);
+      const bottom = projectPoint(doorWorldPoint(0, y - .055, -selectedDoorThicknessMeters() * .52));
+      const top = projectPoint(doorWorldPoint(0, y + .055, -selectedDoorThicknessMeters() * .52));
+      context.lineCap = 'round';
+      context.lineWidth = state.hingeStyle === 'paumelle' ? 12 : 10;
+      context.strokeStyle = finishGradient(context, state.hingeFinish, bottom.x - 8, bottom.x + 8);
+      context.beginPath();
+      context.moveTo(bottom.x, bottom.y);
+      context.lineTo(top.x, top.y);
+      context.stroke();
+      if (state.hingeStyle === 'ball' || state.hingeStyle === 'vase') {
+        context.beginPath();
+        context.arc(top.x, top.y - 3, state.hingeStyle === 'vase' ? 6 : 4.5, 0, Math.PI * 2);
+        context.fillStyle = finishGradient(context, state.hingeFinish, top.x - 7, top.x + 7);
+        context.fill();
+      }
+      context.lineCap = 'butt';
+    }
+
+    if (state.hingeSecurity === 'claw' && Number(state.openAngle) > 9) {
+      [doorHeight * .36, doorHeight * .66].forEach((y) => {
+        const start = projectPoint(doorWorldPoint(0, y, -selectedDoorThicknessMeters() * .5));
+        const end = projectPoint({
+          x: state.hingeSide === 'left' ? -.545 : .545,
+          y,
+          z: -.015,
+        });
+        context.lineCap = 'round';
+        context.lineWidth = 5;
+        context.strokeStyle = finishGradient(context, state.hingeFinish, start.x, end.x);
+        context.beginPath();
+        context.moveTo(start.x, start.y);
+        context.lineTo(end.x, end.y);
+        context.stroke();
+        context.lineCap = 'butt';
+      });
+    }
+  }
+
+  function renderExportCanvas() {
+    const context = renderContext;
+    context.clearRect(0, 0, renderCanvas.width, renderCanvas.height);
+    context.fillStyle = '#f2f6fa';
+    context.fillRect(0, 0, renderCanvas.width, renderCanvas.height);
+
+    context.fillStyle = '#063b7a';
+    context.font = '800 24px Arial, sans-serif';
+    context.fillText('BIJVOETS DEUREN · DEURONTWERP', 42, 48);
+    context.fillStyle = '#e30619';
+    context.fillRect(42, 60, 310, 5);
+
+    const doorHeightPixels = 825;
+    const doorWidthPixels = doorHeightPixels * (100 / selectedDoorHeightCm());
+    const doorX = (renderCanvas.width - doorWidthPixels) / 2;
+    const doorY = 92;
+    const frame = 18;
+
+    context.fillStyle = '#f6f5f1';
+    context.fillRect(doorX - frame, doorY - frame, doorWidthPixels + (frame * 2), doorHeightPixels + (frame * 2));
+    context.strokeStyle = '#79858c';
+    context.lineWidth = 2;
+    context.strokeRect(doorX - frame, doorY - frame, doorWidthPixels + (frame * 2), doorHeightPixels + (frame * 2));
 
     context.fillStyle = getDoorColors()[2];
     context.fillRect(doorX, doorY, doorWidthPixels, doorHeightPixels);
@@ -972,4 +1350,3 @@
 
   setPreset('vlak');
 })();
-
