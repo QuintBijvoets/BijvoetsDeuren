@@ -6,10 +6,13 @@
   const DOOR_HEIGHT = 2200;
   const MIN_GLASS = 120;
   const EDGE = 60;
+  const WELDORPEL_TOP = 2020;
+  const WELDORPEL_HEIGHT = 86;
+  const WELDORPEL_CLEARANCE = 70;
+  const GLASS_BOTTOM_LIMIT = WELDORPEL_TOP - WELDORPEL_CLEARANCE;
 
   const surface = root.querySelector('[data-door-surface]');
   const glassLayer = root.querySelector('[data-glass-layer]');
-  const stage = root.querySelector('[data-stage]');
   const hardware = root.querySelector('[data-hardware]');
   const hinges = root.querySelector('[data-hinges]');
   const renderCanvas = root.querySelector('[data-render-canvas]');
@@ -24,10 +27,12 @@
   const shareStatus = root.querySelector('[data-share-status]');
   const hingeAdvice = root.querySelector('[data-hinge-advice]');
   const summaryDoor = root.querySelector('[data-summary-door]');
+  const summarySize = root.querySelector('[data-summary-size]');
   const summaryGlass = root.querySelector('[data-summary-glass]');
   const summaryHardware = root.querySelector('[data-summary-hardware]');
+  const summaryLock = root.querySelector('[data-summary-lock]');
   const summaryHinges = root.querySelector('[data-summary-hinges]');
-  const viewLabel = root.querySelector('[data-view-label]');
+  const doorPreview = root.querySelector('[data-door-preview]');
   const stageInstruction = root.querySelector('[data-stage-instruction]');
 
   const labels = {
@@ -51,6 +56,10 @@
   };
 
   const state = {
+    doorMaterial: 'aluplex',
+    doorHeightCm: '220',
+    doorThickness: '40',
+    lockingSystem: 'threePoint',
     doorFinish: 'grey',
     glassTint: 'clear',
     beadStyle: 'modern',
@@ -64,6 +73,8 @@
     hingeSide: 'left',
     snap: true,
     view: '2d',
+    openAngle: 32,
+    cameraSide: 'outside',
     panes: [],
     selectedId: null,
     drawMode: false,
@@ -95,9 +106,9 @@
 
   function normalizePane(pane) {
     pane.width = clamp(roundToTen(pane.width), MIN_GLASS, DOOR_WIDTH - (EDGE * 2));
-    pane.height = clamp(roundToTen(pane.height), MIN_GLASS, DOOR_HEIGHT - (EDGE * 2));
+    pane.height = clamp(roundToTen(pane.height), MIN_GLASS, GLASS_BOTTOM_LIMIT - EDGE);
     pane.x = clamp(roundToTen(pane.x), EDGE, DOOR_WIDTH - EDGE - pane.width);
-    pane.y = clamp(roundToTen(pane.y), EDGE, DOOR_HEIGHT - EDGE - pane.height);
+    pane.y = clamp(roundToTen(pane.y), EDGE, GLASS_BOTTOM_LIMIT - pane.height);
   }
 
   function closestSnap(value, candidates) {
@@ -116,7 +127,7 @@
   function snapPosition(value, axis, size, ignoreId) {
     if (!state.snap) return { value: roundToTen(value), snapped: false };
 
-    const limit = axis === 'x' ? DOOR_WIDTH : DOOR_HEIGHT;
+    const limit = axis === 'x' ? DOOR_WIDTH : GLASS_BOTTOM_LIMIT;
     const candidates = [EDGE, 80, 100, 110, 120, (limit - size) / 2, limit - size - 120, limit - size - 110, limit - size - 100, limit - size - 80, limit - size - EDGE];
     state.panes.filter((pane) => pane.id !== ignoreId).forEach((pane) => {
       const start = axis === 'x' ? pane.x : pane.y;
@@ -206,247 +217,399 @@
     context.closePath();
   }
 
-  function mapDoorPoint(x, y) {
-    const u = x / DOOR_WIDTH;
-    const v = y / DOOR_HEIGHT;
-    const topLeft = { x: 238, y: 112 };
-    const topRight = { x: 690, y: 162 };
-    const bottomLeft = { x: 214, y: 918 };
-    const bottomRight = { x: 718, y: 884 };
-    const top = {
-      x: topLeft.x + ((topRight.x - topLeft.x) * u),
-      y: topLeft.y + ((topRight.y - topLeft.y) * u),
-    };
-    const bottom = {
-      x: bottomLeft.x + ((bottomRight.x - bottomLeft.x) * u),
-      y: bottomLeft.y + ((bottomRight.y - bottomLeft.y) * u),
-    };
+  const DOOR_WIDTH_METERS = 1;
+  let activeCamera = null;
+
+  function selectedDoorHeightCm() {
+    return clamp(Number.parseInt(state.doorHeightCm, 10) || 220, 180, 250);
+  }
+
+  function selectedDoorHeightMeters() {
+    return selectedDoorHeightCm() / 100;
+  }
+
+  function selectedDoorThicknessMeters() {
+    return state.doorThickness === '54' ? .054 : .04;
+  }
+
+  function subtractVector(a, b) {
+    return { x: a.x - b.x, y: a.y - b.y, z: a.z - b.z };
+  }
+
+  function crossVector(a, b) {
     return {
-      x: top.x + ((bottom.x - top.x) * v),
-      y: top.y + ((bottom.y - top.y) * v),
+      x: (a.y * b.z) - (a.z * b.y),
+      y: (a.z * b.x) - (a.x * b.z),
+      z: (a.x * b.y) - (a.y * b.x),
     };
   }
 
-  function mappedRect(x, y, width, height) {
+  function dotVector(a, b) {
+    return (a.x * b.x) + (a.y * b.y) + (a.z * b.z);
+  }
+
+  function normalizeVector(vector) {
+    const length = Math.hypot(vector.x, vector.y, vector.z) || 1;
+    return { x: vector.x / length, y: vector.y / length, z: vector.z / length };
+  }
+
+  function createCamera() {
+    const doorHeight = selectedDoorHeightMeters();
+    const position = state.cameraSide === 'inside'
+      ? { x: -2.45, y: doorHeight * .62, z: -4.35 }
+      : { x: 2.55, y: doorHeight * .6, z: 4.55 };
+    const target = { x: 0, y: doorHeight * .49, z: -.04 };
+    const forward = normalizeVector(subtractVector(target, position));
+    const right = normalizeVector(crossVector(forward, { x: 0, y: 1, z: 0 }));
+    const up = normalizeVector(crossVector(right, forward));
+    return { position, forward, right, up, focalLength: 1220 };
+  }
+
+  function projectPoint(point) {
+    const relative = subtractVector(point, activeCamera.position);
+    const depth = dotVector(relative, activeCamera.forward);
+    const scale = activeCamera.focalLength / Math.max(depth, .1);
+    return {
+      x: (renderCanvas.width / 2) + (dotVector(relative, activeCamera.right) * scale),
+      y: (renderCanvas.height * .54) - (dotVector(relative, activeCamera.up) * scale),
+      depth,
+      scale,
+    };
+  }
+
+  function cameraDepth(point) {
+    return dotVector(subtractVector(point, activeCamera.position), activeCamera.forward);
+  }
+
+  function projectedPolygon(points) {
+    return points.map(projectPoint);
+  }
+
+  function worldRectangle(x1, y1, x2, y2, z) {
     return [
-      mapDoorPoint(x, y),
-      mapDoorPoint(x + width, y),
-      mapDoorPoint(x + width, y + height),
-      mapDoorPoint(x, y + height),
+      { x: x1, y: y2, z },
+      { x: x2, y: y2, z },
+      { x: x2, y: y1, z },
+      { x: x1, y: y1, z },
     ];
+  }
+
+  function fillProjectedFace(context, points, colors, stroke = null, lineWidth = 1) {
+    const projected = projectedPolygon(points);
+    polygon(context, projected);
+    const gradient = context.createLinearGradient(projected[0].x, projected[0].y, projected[2].x, projected[2].y);
+    colors.forEach((color, index) => gradient.addColorStop(index / Math.max(colors.length - 1, 1), color));
+    context.fillStyle = gradient;
+    context.fill();
+    if (stroke) {
+      context.lineWidth = lineWidth;
+      context.strokeStyle = stroke;
+      context.stroke();
+    }
+    return projected;
   }
 
   function finishGradient(context, finish, x1, x2) {
     const palettes = {
-      steel: ['#727d86', '#f4f7f8', '#8f9aa2'],
-      aluminium: ['#7b858d', '#d3d8dc', '#9099a0'],
-      black: ['#050708', '#33383c', '#080a0b'],
-      brass: ['#775617', '#f1d783', '#9a7225'],
-      chrome: ['#65727c', '#ffffff', '#7f8d97'],
-      nickel: ['#746f67', '#d7d0c5', '#8a857c'],
-      galvanized: ['#7c8588', '#c7ced0', '#8d9698'],
+      steel: ['#667279', '#f7f9f8', '#7d888e'],
+      aluminium: ['#778087', '#d9ddde', '#848d92'],
+      black: ['#030506', '#343a3d', '#07090a'],
+      brass: ['#68480e', '#f2d16f', '#8b641a'],
+      chrome: ['#5d6971', '#ffffff', '#77838a'],
+      nickel: ['#706a61', '#d8d1c5', '#817b72'],
+      galvanized: ['#747d80', '#cbd1d1', '#858e90'],
     };
     const colors = palettes[finish] || palettes.steel;
     const gradient = context.createLinearGradient(x1, 0, x2, 0);
     gradient.addColorStop(0, colors[0]);
-    gradient.addColorStop(.5, colors[1]);
+    gradient.addColorStop(.48, colors[1]);
     gradient.addColorStop(1, colors[2]);
     return gradient;
   }
 
-  function drawGlassPane(context, pane) {
-    const points = mappedRect(pane.x, pane.y, pane.width, pane.height);
-    polygon(context, points);
-    const glassGradients = {
-      clear: ['rgba(202,235,249,.92)', 'rgba(74,143,179,.72)'],
-      frosted: ['rgba(250,253,253,.98)', 'rgba(188,211,220,.96)'],
-      frostedBorder: ['rgba(211,240,250,.95)', 'rgba(78,151,184,.8)'],
-      smoke: ['rgba(98,116,126,.93)', 'rgba(24,45,58,.96)'],
-      bronze: ['rgba(204,165,111,.9)', 'rgba(87,61,35,.96)'],
-      reeded: ['rgba(229,244,248,.96)', 'rgba(118,175,195,.88)'],
+  function getDoorColors() {
+    const palettes = {
+      grey: ['#aeb1b0', '#bec0be', '#b5b7b6', '#a4a7a6'],
+      white: ['#e4e5e1', '#f0f0ec', '#e9e9e5', '#d8dad6'],
+      anthracite: ['#343b3f', '#454c50', '#3c4347', '#2f363a'],
+      custom: ['#823946', '#944551', '#8b3f4b', '#74303c'],
     };
-    const colors = glassGradients[state.glassTint] || glassGradients.clear;
-    const gradient = context.createLinearGradient(points[0].x, points[0].y, points[2].x, points[2].y);
-    gradient.addColorStop(0, colors[0]);
-    gradient.addColorStop(1, colors[1]);
-    context.fillStyle = gradient;
-    context.fill();
-
-    context.save();
-    polygon(context, points);
-    context.clip();
-    if (state.glassTint === 'frostedBorder') {
-      const inset = Math.min(80, pane.width * .16, pane.height * .16);
-      const inner = mappedRect(pane.x + inset, pane.y + inset, pane.width - (inset * 2), pane.height - (inset * 2));
-      polygon(context, inner);
-      context.fillStyle = 'rgba(242,247,247,.96)';
-      context.fill();
-    }
-    if (state.glassTint === 'reeded') {
-      context.strokeStyle = 'rgba(255,255,255,.45)';
-      context.lineWidth = 3;
-      for (let x = pane.x + 25; x < pane.x + pane.width; x += 55) {
-        const top = mapDoorPoint(x, pane.y);
-        const bottom = mapDoorPoint(x, pane.y + pane.height);
-        context.beginPath();
-        context.moveTo(top.x, top.y);
-        context.lineTo(bottom.x, bottom.y);
-        context.stroke();
-      }
-    }
-    const reflectionStart = mapDoorPoint(pane.x + (pane.width * .12), pane.y);
-    const reflectionEnd = mapDoorPoint(pane.x + (pane.width * .48), pane.y + pane.height);
-    context.strokeStyle = 'rgba(255,255,255,.34)';
-    context.lineWidth = Math.max(5, pane.width / 55);
-    context.beginPath();
-    context.moveTo(reflectionStart.x, reflectionStart.y);
-    context.lineTo(reflectionEnd.x, reflectionEnd.y);
-    context.stroke();
-    context.restore();
-
-    polygon(context, points);
-    context.lineWidth = state.beadStyle === 'steel' ? 5 : state.beadStyle === 'classic' ? 12 : 8;
-    context.strokeStyle = state.beadStyle === 'steel' ? '#65747e' : '#edf1f2';
-    context.stroke();
-    if (state.beadStyle === 'classic') {
-      polygon(context, mappedRect(pane.x + 20, pane.y + 20, pane.width - 40, pane.height - 40));
-      context.lineWidth = 3;
-      context.strokeStyle = 'rgba(70,87,96,.5)';
-      context.stroke();
-    }
+    return palettes[state.doorFinish] || palettes.grey;
   }
 
-  function drawHardware3d(context) {
-    const center = getHardwareCenter();
-    const point = mapDoorPoint(center, 1110);
-    context.fillStyle = finishGradient(context, state.hardwareFinish, point.x - 30, point.x + 35);
-    context.strokeStyle = 'rgba(19,31,39,.55)';
-    context.lineWidth = 3;
-    if (state.hardwareType === 'bar') {
-      const top = mapDoorPoint(center, 650);
-      const bottom = mapDoorPoint(center, 1580);
-      context.lineWidth = 13;
-      context.lineCap = 'round';
+  function doorAngleRadians() {
+    const hingeDirection = state.hingeSide === 'left' ? 1 : -1;
+    const swingDirection = state.swingDirection === 'inward' ? 1 : -1;
+    return (Number(state.openAngle) * Math.PI / 180) * hingeDirection * swingDirection;
+  }
+
+  function doorWorldPoint(distanceFromHinge, y, z = 0) {
+    const angle = doorAngleRadians();
+    const hingeX = state.hingeSide === 'left' ? -.5 : .5;
+    const localX = state.hingeSide === 'left' ? distanceFromHinge : -distanceFromHinge;
+    return {
+      x: hingeX + (localX * Math.cos(angle)) + (z * Math.sin(angle)),
+      y,
+      z: .035 - (localX * Math.sin(angle)) + (z * Math.cos(angle)),
+    };
+  }
+
+  function doorSurfacePoint(xMillimeters, yMillimeters, z = 0) {
+    const physicalX = xMillimeters / DOOR_WIDTH;
+    const distanceFromHinge = state.hingeSide === 'left' ? physicalX : DOOR_WIDTH_METERS - physicalX;
+    const normalizedY = yMillimeters / DOOR_HEIGHT;
+    return doorWorldPoint(distanceFromHinge, selectedDoorHeightMeters() * (1 - normalizedY), z);
+  }
+
+  function drawEnvironment(context) {
+    const wall = context.createLinearGradient(0, 0, renderCanvas.width, renderCanvas.height * .7);
+    wall.addColorStop(0, state.cameraSide === 'inside' ? '#eeece7' : '#f0ede7');
+    wall.addColorStop(1, state.cameraSide === 'inside' ? '#d9d7d1' : '#dedbd4');
+    context.fillStyle = wall;
+    context.fillRect(0, 0, renderCanvas.width, renderCanvas.height);
+
+    const floorTop = renderCanvas.height * .69;
+    const floor = context.createLinearGradient(0, floorTop, 0, renderCanvas.height);
+    floor.addColorStop(0, state.cameraSide === 'inside' ? '#b3afa8' : '#bbb7b0');
+    floor.addColorStop(1, state.cameraSide === 'inside' ? '#85827d' : '#8d8983');
+    context.fillStyle = floor;
+    context.fillRect(0, floorTop, renderCanvas.width, renderCanvas.height - floorTop);
+
+    context.save();
+    context.globalAlpha = .11;
+    for (let index = 0; index < 8; index += 1) {
+      context.fillStyle = '#4f5658';
+      context.fillRect(0, floorTop + (index * 29), renderCanvas.width, 1);
+    }
+    context.restore();
+  }
+
+  function drawFrame(context) {
+    const doorHeight = selectedDoorHeightMeters();
+    const openingTop = doorHeight + .06;
+    const frameTop = doorHeight + .16;
+    const opening = worldRectangle(-.535, .07, .535, openingTop, -.1);
+    fillProjectedFace(context, opening, ['#111a20', '#27333a', '#080d10']);
+
+    const recessLeft = [
+      { x: -.535, y: .07, z: .04 },
+      { x: -.535, y: openingTop, z: .04 },
+      { x: -.535, y: openingTop, z: -.12 },
+      { x: -.535, y: .07, z: -.12 },
+    ];
+    const recessRight = recessLeft.map((point) => ({ ...point, x: .535 }));
+    fillProjectedFace(context, recessLeft, ['#b9b8b3', '#e7e4dd', '#878b89'], 'rgba(50,57,59,.55)');
+    fillProjectedFace(context, recessRight, ['#888d8b', '#e5e2db', '#b0b1ad'], 'rgba(50,57,59,.55)');
+
+    const frameColor = state.cameraSide === 'inside'
+      ? ['#d2d0ca', '#fbfaf6', '#b5b7b4']
+      : ['#c7c6c0', '#fffef8', '#afb2b0'];
+    fillProjectedFace(context, worldRectangle(-.65, .02, -.535, frameTop, .055), frameColor, 'rgba(54,61,63,.48)', 1.4);
+    fillProjectedFace(context, worldRectangle(.535, .02, .65, frameTop, .055), frameColor, 'rgba(54,61,63,.48)', 1.4);
+    fillProjectedFace(context, worldRectangle(-.535, openingTop, .535, frameTop, .055), frameColor, 'rgba(54,61,63,.48)', 1.4);
+
+    const gasketColor = ['#101719', '#343d3f', '#090d0e'];
+    fillProjectedFace(context, worldRectangle(-.544, .08, -.518, openingTop + .01, .068), gasketColor);
+    fillProjectedFace(context, worldRectangle(.518, .08, .544, openingTop + .01, .068), gasketColor);
+    fillProjectedFace(context, worldRectangle(-.52, openingTop - .025, .52, openingTop + .005, .068), gasketColor);
+
+    const threshold = [
+      { x: -.66, y: .015, z: .18 },
+      { x: .66, y: .015, z: .18 },
+      { x: .66, y: .015, z: -.18 },
+      { x: -.66, y: .015, z: -.18 },
+    ];
+    const thresholdProjected = fillProjectedFace(context, threshold, ['#d4d4ce', '#7f8482', '#343838'], '#3d4445', 1.3);
+    context.save();
+    polygon(context, thresholdProjected);
+    context.clip();
+    context.globalAlpha = .32;
+    for (let index = 0; index < 7; index += 1) {
+      context.fillStyle = index % 2 ? '#ffffff' : '#1d2426';
+      context.fillRect(0, thresholdProjected[0].y + (index * 3), renderCanvas.width, 1);
+    }
+    context.restore();
+  }
+
+  function drawDoorShadow(context) {
+    const hinge = projectPoint(doorWorldPoint(0, .015, 0));
+    const latchFront = projectPoint(doorWorldPoint(1, .015, 0));
+    const latchBack = projectPoint(doorWorldPoint(1, .015, -selectedDoorThicknessMeters()));
+    const hingeBack = projectPoint(doorWorldPoint(0, .015, -selectedDoorThicknessMeters()));
+    context.save();
+    context.filter = 'blur(15px)';
+    context.globalAlpha = .32;
+    polygon(context, [
+      { x: hinge.x + 10, y: hinge.y + 8 },
+      { x: latchFront.x + 58, y: latchFront.y + 28 },
+      { x: latchBack.x + 50, y: latchBack.y + 37 },
+      { x: hingeBack.x + 7, y: hingeBack.y + 15 },
+    ]);
+    context.fillStyle = '#071018';
+    context.fill();
+    context.restore();
+  }
+
+  function drawWoodGrain(context, z) {
+    context.save();
+    const face = projectedPolygon([
+      doorSurfacePoint(0, 0, z),
+      doorSurfacePoint(DOOR_WIDTH, 0, z),
+      doorSurfacePoint(DOOR_WIDTH, DOOR_HEIGHT, z),
+      doorSurfacePoint(0, DOOR_HEIGHT, z),
+    ]);
+    polygon(context, face);
+    context.clip();
+    for (let index = 0; index <= 42; index += 1) {
+      const x = (index / 42) * DOOR_WIDTH;
+      const top = projectPoint(doorSurfacePoint(x, 0, z + (z === 0 ? .001 : -.001)));
+      const bottom = projectPoint(doorSurfacePoint(x + (Math.sin(index * 1.7) * 7), DOOR_HEIGHT, z + (z === 0 ? .001 : -.001)));
+      context.strokeStyle = index % 4 === 0 ? 'rgba(255,255,255,.042)' : 'rgba(25,36,43,.026)';
+      context.lineWidth = index % 5 === 0 ? 1 : .55;
       context.beginPath();
       context.moveTo(top.x, top.y);
-      context.lineTo(bottom.x, bottom.y);
-      context.strokeStyle = 'rgba(22,30,34,.42)';
+      context.bezierCurveTo(
+        top.x + (Math.sin(index * .9) * 5),
+        top.y + ((bottom.y - top.y) * .34),
+        bottom.x - (Math.cos(index * 1.2) * 4),
+        top.y + ((bottom.y - top.y) * .69),
+        bottom.x,
+        bottom.y,
+      );
       context.stroke();
-      context.lineWidth = 9;
-      context.strokeStyle = finishGradient(context, state.hardwareFinish, top.x - 8, top.x + 10);
+    }
+    context.restore();
+  }
+
+  function glassColors() {
+    const palettes = {
+      clear: ['rgba(205,230,237,.9)', 'rgba(51,92,108,.94)'],
+      frosted: ['rgba(247,248,244,.98)', 'rgba(183,197,199,.98)'],
+      frostedBorder: ['rgba(210,234,239,.96)', 'rgba(65,107,122,.95)'],
+      smoke: ['rgba(92,103,106,.96)', 'rgba(18,29,32,.99)'],
+      bronze: ['rgba(184,145,94,.96)', 'rgba(66,47,29,.99)'],
+      reeded: ['rgba(224,237,238,.98)', 'rgba(98,139,148,.96)'],
+    };
+    return palettes[state.glassTint] || palettes.clear;
+  }
+
+  function drawGlassOnDoor(context, pane, z, backFace = false) {
+    const points = projectedPolygon([
+      doorSurfacePoint(pane.x, pane.y, z),
+      doorSurfacePoint(pane.x + pane.width, pane.y, z),
+      doorSurfa…3948 tokens truncated… * 2));
+
+    context.fillStyle = getDoorColors()[2];
+    context.fillRect(doorX, doorY, doorWidthPixels, doorHeightPixels);
+    context.strokeStyle = 'rgba(31,42,47,.7)';
+    context.lineWidth = 2;
+    context.strokeRect(doorX, doorY, doorWidthPixels, doorHeightPixels);
+
+    context.save();
+    context.beginPath();
+    context.rect(doorX, doorY, doorWidthPixels, doorHeightPixels);
+    context.clip();
+    for (let index = 1; index < 28; index += 1) {
+      const grainX = doorX + ((doorWidthPixels / 28) * index);
+      context.strokeStyle = index % 4 === 0 ? 'rgba(255,255,255,.09)' : 'rgba(38,47,51,.04)';
+      context.lineWidth = .75;
+      context.beginPath();
+      context.moveTo(grainX, doorY);
+      context.lineTo(grainX + (Math.sin(index) * 2), doorY + doorHeightPixels);
+      context.stroke();
+    }
+    context.restore();
+
+    const scaleX = doorWidthPixels / DOOR_WIDTH;
+    const scaleY = doorHeightPixels / DOOR_HEIGHT;
+    const glassFills = {
+      clear: '#a8cbd8',
+      frosted: '#dce4e4',
+      frostedBorder: '#b8d4dc',
+      smoke: '#53636a',
+      bronze: '#9a7650',
+      reeded: '#b8d3d6',
+    };
+    state.panes.forEach((pane) => {
+      const x = doorX + (pane.x * scaleX);
+      const y = doorY + (pane.y * scaleY);
+      const width = pane.width * scaleX;
+      const height = pane.height * scaleY;
+      context.fillStyle = glassFills[state.glassTint] || glassFills.clear;
+      context.fillRect(x, y, width, height);
+      context.strokeStyle = state.beadStyle === 'steel' ? '#59666d' : '#eef0ed';
+      context.lineWidth = state.beadStyle === 'steel' ? 5 : state.beadStyle === 'classic' ? 10 : 7;
+      context.strokeRect(x, y, width, height);
+      context.lineWidth = 1.5;
+      context.strokeStyle = 'rgba(42,60,69,.62)';
+      context.strokeRect(x + 7, y + 7, Math.max(1, width - 14), Math.max(1, height - 14));
+    });
+
+    const weatherbarY = doorY + (WELDORPEL_TOP * scaleY);
+    const weatherbarX = doorX + (45 * scaleX);
+    const weatherbarWidth = 910 * scaleX;
+    const weatherbarHeight = Math.max(12, WELDORPEL_HEIGHT * scaleY);
+    context.fillStyle = getDoorColors()[0];
+    context.fillRect(weatherbarX, weatherbarY, weatherbarWidth, weatherbarHeight);
+    context.strokeStyle = '#5b666b';
+    context.lineWidth = 1.5;
+    context.strokeRect(weatherbarX, weatherbarY, weatherbarWidth, weatherbarHeight);
+    context.fillStyle = '#374247';
+    context.fillRect(weatherbarX + 8, weatherbarY + weatherbarHeight - 3, weatherbarWidth - 16, 2);
+
+    const hardwareX = doorX + (getHardwareCenter() * scaleX);
+    const hardwareColor = {
+      steel: '#b5bdc1',
+      aluminium: '#9ea8ad',
+      black: '#161c20',
+      brass: '#b7953e',
+    }[state.hardwareFinish] || '#b5bdc1';
+    context.strokeStyle = hardwareColor;
+    context.fillStyle = hardwareColor;
+    if (state.hardwareType === 'bar') {
+      context.lineWidth = 10;
+      context.lineCap = 'round';
+      context.beginPath();
+      context.moveTo(hardwareX, doorY + (625 * scaleY));
+      context.lineTo(hardwareX, doorY + (1590 * scaleY));
       context.stroke();
       context.lineCap = 'butt';
     } else if (state.hardwareType === 'knob') {
-      const radial = context.createRadialGradient(point.x - 7, point.y - 8, 3, point.x, point.y, 22);
-      radial.addColorStop(0, '#ffffff');
-      radial.addColorStop(.35, state.hardwareFinish === 'brass' ? '#dfbd5e' : '#aeb8be');
-      radial.addColorStop(1, state.hardwareFinish === 'black' ? '#080a0c' : '#3d4a52');
       context.beginPath();
-      context.arc(point.x, point.y, 22, 0, Math.PI * 2);
-      context.fillStyle = radial;
+      context.arc(hardwareX, doorY + (1110 * scaleY), 17, 0, Math.PI * 2);
       context.fill();
     } else {
-      context.fillRect(point.x - 7, point.y - 15, 14, 31);
-      const end = mapDoorPoint(center + 180, 1110);
-      context.lineWidth = 13;
-      context.lineCap = 'round';
-      context.beginPath();
-      context.moveTo(point.x, point.y);
-      context.lineTo(end.x, end.y);
-      context.strokeStyle = finishGradient(context, state.hardwareFinish, point.x, end.x);
-      context.stroke();
-      context.lineCap = 'butt';
+      const handleY = doorY + (1110 * scaleY);
+      context.fillRect(hardwareX - 5, handleY - 8, Math.min(72, doorWidthPixels * .22), 12);
     }
-  }
 
-  function drawHinges3d(context) {
-    if (state.hingeStyle === 'concealed') return;
-    const count = Number.parseInt(state.hingeCount, 10);
-    const x = state.hingeSide === 'left' ? 12 : 988;
-    for (let index = 0; index < count; index += 1) {
-      const y = 350 + ((1500 / Math.max(count - 1, 1)) * index);
-      const point = mapDoorPoint(x, y);
-      const outward = state.hingeSide === 'left' ? -1 : 1;
-      context.fillStyle = finishGradient(context, state.hingeFinish, point.x - 15, point.x + 15);
-      context.fillRect(point.x + (outward * 3) - 8, point.y - 17, 16, 34);
-      if (state.hingeStyle === 'ball' || state.hingeStyle === 'vase') {
-        context.beginPath();
-        context.arc(point.x + (outward * 3), point.y - 19, state.hingeStyle === 'vase' ? 7 : 5, 0, Math.PI * 2);
-        context.fill();
-      }
+    const hingeColor = {
+      steel: '#aab3b7',
+      brass: '#b7953e',
+      black: '#171c1f',
+      chrome: '#cbd0d2',
+      nickel: '#aaa49b',
+      galvanized: '#9fa8aa',
+    }[state.hingeFinish] || '#aab3b7';
+    const hingeX = state.hingeSide === 'left' ? doorX - 5 : doorX + doorWidthPixels - 6;
+    const hingeCount = Number.parseInt(state.hingeCount, 10);
+    context.fillStyle = hingeColor;
+    for (let index = 0; index < hingeCount; index += 1) {
+      const hingeY = doorY + (doorHeightPixels * (.16 + ((.68 / Math.max(hingeCount - 1, 1)) * index)));
+      context.fillRect(hingeX, hingeY - 13, 11, 26);
     }
-  }
 
-  function renderRealisticCanvas() {
-    const context = renderContext;
-    context.clearRect(0, 0, renderCanvas.width, renderCanvas.height);
+    context.fillStyle = '#717978';
+    context.fillRect(doorX - frame - 8, doorY + doorHeightPixels + frame - 2, doorWidthPixels + (frame * 2) + 16, 11);
 
-    const wall = context.createLinearGradient(0, 0, 900, 700);
-    wall.addColorStop(0, '#f7f4ee');
-    wall.addColorStop(.55, '#e4e1db');
-    wall.addColorStop(1, '#c9d0d2');
-    context.fillStyle = wall;
-    context.fillRect(0, 0, 900, 760);
-    const floor = context.createLinearGradient(0, 730, 0, 1000);
-    floor.addColorStop(0, '#b6afa4');
-    floor.addColorStop(1, '#665f58');
-    context.fillStyle = floor;
-    context.fillRect(0, 760, 900, 240);
-    context.fillStyle = 'rgba(15,28,39,.22)';
-    context.beginPath();
-    context.ellipse(470, 905, 310, 55, -.04, 0, Math.PI * 2);
-    context.fill();
-
-    const front = mappedRect(0, 0, DOOR_WIDTH, DOOR_HEIGHT);
-    const depth = [front[1], { x: front[1].x + 35, y: front[1].y - 16 }, { x: front[2].x + 38, y: front[2].y - 8 }, front[2]];
-    polygon(context, depth);
-    context.fillStyle = '#082d58';
-    context.fill();
-
-    polygon(context, front);
-    const doorColors = {
-      grey: ['#a0aab2', '#d6dde1', '#8b969e'],
-      white: ['#dcdfdd', '#ffffff', '#c4c9c7'],
-      anthracite: ['#161d22', '#4c565c', '#171e23'],
-      custom: ['#672936', '#b75c6a', '#57232e'],
-    };
-    const colors = doorColors[state.doorFinish] || doorColors.grey;
-    const doorGradient = context.createLinearGradient(front[0].x, 0, front[1].x, 0);
-    doorGradient.addColorStop(0, colors[0]);
-    doorGradient.addColorStop(.55, colors[1]);
-    doorGradient.addColorStop(1, colors[2]);
-    context.fillStyle = doorGradient;
-    context.fill();
-    context.lineWidth = 22;
-    context.strokeStyle = '#f4f5f3';
-    context.stroke();
-    context.lineWidth = 2;
-    context.strokeStyle = 'rgba(9,40,73,.45)';
-    context.stroke();
-
-    state.panes.forEach((pane) => drawGlassPane(context, pane));
-    drawHinges3d(context);
-    drawHardware3d(context);
-
-    context.save();
-    context.fillStyle = 'rgba(5,42,81,.88)';
-    context.font = '800 20px system-ui, sans-serif';
-    context.letterSpacing = '4px';
-    context.fillText('BIJVOETS', 52, 948);
+    context.fillStyle = '#163e68';
+    context.font = '800 20px Arial, sans-serif';
+    context.fillText(`Aluplex · ${selectedDoorHeightCm()} cm · ${state.doorThickness} mm`, 42, 1018);
     context.fillStyle = '#e30619';
-    context.fillRect(52, 960, 122, 5);
-    context.restore();
-
-    if (state.hingeSecurity === 'claw') {
-      context.fillStyle = '#063b7a';
-      context.fillRect(670, 925, 180, 44);
-      context.fillStyle = '#ffffff';
-      context.font = '800 13px system-ui, sans-serif';
-      context.fillText('DIEVENKLAUW', 687, 945);
-      context.fillStyle = '#ff3948';
-      context.font = '700 11px system-ui, sans-serif';
-      context.fillText('AANBEVOLEN', 701, 960);
-    }
+    context.font = '800 25px Arial, sans-serif';
+    context.textAlign = 'right';
+    context.fillText(`${price.format(calculatePrice())} incl. btw en montage`, renderCanvas.width - 42, 1018);
+    context.textAlign = 'left';
   }
 
   function updateDimensions() {
@@ -458,6 +621,11 @@
   }
 
   function calculatePrice() {
+    const height = selectedDoorHeightCm();
+    const platePrice = height <= 200 ? 1000 : height <= 210 ? 1100 : 1200;
+    const thicknessPremium = state.doorThickness === '54' ? 100 : 0;
+    const projectAndInstallationBase = 1350;
+    const threePointLockPrice = 425;
     const doorPrices = { grey: 0, white: 0, anthracite: 195, custom: 325 };
     const hardwarePrices = { bar: 295, knob: 165, lever: 145 };
     const finishPrices = { steel: 0, aluminium: 0, black: 45, brass: 125 };
@@ -471,8 +639,10 @@
       const area = (pane.width * pane.height) / 1000000;
       return total + 175 + (area * 240) + beadPrices[state.beadStyle] + glassPrices[state.glassTint];
     }, 0);
-    return Math.round(1495 + doorPrices[state.doorFinish] + hardwarePrices[state.hardwareType] + finishPrices[state.hardwareFinish]
-      + hingeStylePrices[state.hingeStyle] + hingeFinishPrices[state.hingeFinish] + securityPrice + hingeCountPrice + glassTotal);
+    const totalExcludingVat = projectAndInstallationBase + platePrice + thicknessPremium + threePointLockPrice
+      + doorPrices[state.doorFinish] + hardwarePrices[state.hardwareType] + finishPrices[state.hardwareFinish]
+      + hingeStylePrices[state.hingeStyle] + hingeFinishPrices[state.hingeFinish] + securityPrice + hingeCountPrice + glassTotal;
+    return Math.round(totalExcludingVat * 1.21);
   }
 
   function buildDesignMessage() {
@@ -484,14 +654,19 @@
       'Ik stuur ook de gegenereerde afbeelding van mijn ontwerp mee.',
       '',
       `Deur: ${labels.doorFinish[state.doorFinish]}`,
+      'Materiaal: Aluplex',
+      `Afmetingen deurblad: ${selectedDoorHeightCm()} cm hoog × ${state.doorThickness} mm dik`,
       `Glas: ${labels.glassTint[state.glassTint]}`,
       `Glaslat: ${labels.beadStyle[state.beadStyle]}`,
       paneSizes,
       `Beslag: ${labels.hardwareType[state.hardwareType]} in ${labels.hardwareFinish[state.hardwareFinish]}`,
+      'Sluiting: driepuntsluiting, standaard inclusief montage',
+      'Weldorpel: standaard aan de buitenzijde, met waterafvoer en druipgroef',
+      'Valdorpel: standaard ingefreesd, tegen tocht en geluid onder de deur',
       `Scharnieren: ${state.hingeCount}× ${labels.hingeStyle[state.hingeStyle]} in ${labels.hingeFinish[state.hingeFinish]}`,
       `Beveiliging: ${labels.hingeSecurity[state.hingeSecurity]}`,
       `Draairichting en zijde: ${labels.swingDirection[state.swingDirection]}, scharnieren ${labels.hingeSide[state.hingeSide].toLowerCase()}`,
-      `Fictieve prijsindicatie: ${price.format(calculatePrice())}`,
+      `Globale prijs inclusief btw en montage: ${price.format(calculatePrice())}`,
       '',
       'Ik begrijp dat maatvoering, glasopbouw en definitieve prijs nog gecontroleerd worden.',
     ].join('\n');
@@ -507,9 +682,11 @@
     const paneDescription = state.panes.length === 0
       ? 'Geen glasvakken'
       : `${state.panes.length} ${state.panes.length === 1 ? 'glasvak' : 'glasvakken'} · ${labels.glassTint[state.glassTint]}`;
-    summaryDoor.textContent = labels.doorFinish[state.doorFinish];
+    summaryDoor.textContent = `${labels.doorFinish[state.doorFinish]} · weldorpel + valdorpel`;
+    summarySize.textContent = `Aluplex · ${selectedDoorHeightCm()} cm · ${state.doorThickness} mm`;
     summaryGlass.textContent = paneDescription;
     summaryHardware.textContent = `${labels.hardwareType[state.hardwareType]} · ${labels.hardwareFinish[state.hardwareFinish]}`;
+    summaryLock.textContent = 'Driepuntsluiting · incl. montage';
     summaryHinges.textContent = `${labels.hingeStyle[state.hingeStyle]} · ${labels.hingeFinish[state.hingeFinish]} · ${state.hingeSecurity === 'claw' ? 'dievenklauw' : 'zonder klauw'}`;
     priceElement.textContent = price.format(calculatePrice());
     hingeAdvice.textContent = state.swingDirection === 'outward'
@@ -520,22 +697,13 @@
 
   function render() {
     surface.dataset.finish = state.doorFinish;
-    stage.dataset.view = state.view;
+    doorPreview.style.aspectRatio = `${DOOR_WIDTH} / ${selectedDoorHeightCm() * 10}`;
     renderPanes();
     renderHardware();
     renderHinges();
-    renderRealisticCanvas();
     updateDimensions();
     updateSummary();
-    root.querySelectorAll('[data-view]').forEach((button) => {
-      const active = button.dataset.view === state.view;
-      button.classList.toggle('is-active', active);
-      button.setAttribute('aria-pressed', String(active));
-    });
-    viewLabel.textContent = state.view === '3d' ? 'Perspectiefweergave' : 'Vooraanzicht';
-    stageInstruction.textContent = state.view === '3d'
-      ? 'Realistische preview van je actuele keuzes. De gedeelde PNG gebruikt precies deze weergave.'
-      : 'Sleep een glasvak om het te verplaatsen. Sleep de hoek om het formaat te wijzigen.';
+    stageInstruction.textContent = 'Sleep een glasvak om het te verplaatsen. De onderste weldorpelzone blijft automatisch vrij.';
   }
 
   function setPreset(name) {
@@ -543,12 +711,13 @@
       state.panes = [createPane(140, 210, 410, 430), createPane(140, 810, 410, 430), createPane(140, 1410, 410, 430)];
       state.hardwareType = 'lever';
     } else if (name === 'glasstrook') {
-      state.panes = [createPane(110, 110, 320, 1980)];
+      state.panes = [createPane(110, 110, 320, 1740)];
       state.hardwareType = 'bar';
     } else {
       state.panes = [];
       state.hardwareType = 'bar';
     }
+    state.panes.forEach(normalizePane);
     state.selectedId = state.panes[0]?.id || null;
     root.querySelectorAll('[data-preset]').forEach((button) => {
       const active = button.dataset.preset === name;
@@ -572,12 +741,12 @@
     button.classList.toggle('is-active', active);
     button.textContent = active ? 'Sleep op de deur…' : 'Teken glasvak';
     help.textContent = active
-      ? 'Sleep nu op de deur om een nieuw glasvak te tekenen. Loslaten maakt het vak definitief.'
-      : 'Selecteer ‘Teken glasvak’ en sleep een rechthoek op de deur. De rode hulplijnen helpen met uitlijnen.';
+      ? 'Sleep nu op de deur om een nieuw glasvak te tekenen. De zone van de weldorpel blijft geblokkeerd.'
+      : 'Selecteer ‘Teken glasvak’ en sleep een rechthoek. Hulplijnen én de weldorpelzone bewaken de uitlijning.';
   }
 
   function getRenderDataUrl() {
-    renderRealisticCanvas();
+    renderExportCanvas();
     return renderCanvas.toDataURL('image/png');
   }
 
@@ -635,17 +804,18 @@
   root.querySelectorAll('[data-setting]').forEach((control) => {
     control.addEventListener('change', () => {
       const key = control.dataset.setting;
-      state[key] = control.type === 'checkbox' ? control.checked : control.value;
+      if (key === 'doorHeightCm') {
+        const height = clamp(Number.parseInt(control.value, 10) || 220, 180, 250);
+        state[key] = String(height);
+        control.value = String(height);
+      } else {
+        state[key] = control.type === 'checkbox' ? control.checked : control.value;
+      }
       render();
     });
   });
 
   root.querySelectorAll('[data-preset]').forEach((button) => button.addEventListener('click', () => setPreset(button.dataset.preset)));
-  root.querySelectorAll('[data-view]').forEach((button) => button.addEventListener('click', () => {
-    state.view = button.dataset.view === '3d' ? '3d' : '2d';
-    render();
-  }));
-
   root.querySelector('[data-action="draw"]').addEventListener('click', () => setDrawMode(!state.drawMode));
   root.querySelector('[data-action="duplicate"]').addEventListener('click', () => {
     const pane = selectedPane();
@@ -680,7 +850,7 @@
     const ordered = [...state.panes].sort((a, b) => a.y - b.y);
     const margin = 110;
     const totalHeight = ordered.reduce((sum, pane) => sum + pane.height, 0);
-    const gap = Math.max(40, (DOOR_HEIGHT - (margin * 2) - totalHeight) / (ordered.length - 1));
+    const gap = Math.max(40, (GLASS_BOTTOM_LIMIT - (margin * 2) - totalHeight) / (ordered.length - 1));
     let y = margin;
     ordered.forEach((pane) => {
       pane.y = y;
