@@ -33,6 +33,35 @@ document.querySelectorAll('[data-current-year]').forEach((element) => {
   element.textContent = new Date().getFullYear();
 });
 
+const breadcrumb = document.querySelector('.breadcrumb');
+if (breadcrumb) {
+  const canonical = document.querySelector('link[rel="canonical"]');
+  const entries = Array.from(breadcrumb.querySelectorAll('li')).map((entry, index, allEntries) => {
+    const link = entry.querySelector('a');
+    const item = link
+      ? new URL(link.getAttribute('href'), window.location.origin).href
+      : canonical?.href || window.location.href;
+
+    return {
+      '@type': 'ListItem',
+      position: index + 1,
+      name: entry.textContent.trim(),
+      ...(item && (link || index === allEntries.length - 1) ? { item } : {}),
+    };
+  });
+
+  if (entries.length > 1) {
+    const structuredData = document.createElement('script');
+    structuredData.type = 'application/ld+json';
+    structuredData.textContent = JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: entries,
+    });
+    document.head.append(structuredData);
+  }
+}
+
 const quoteForm = document.getElementById('quote-form');
 if (quoteForm) {
   quoteForm.addEventListener('submit', (event) => {
