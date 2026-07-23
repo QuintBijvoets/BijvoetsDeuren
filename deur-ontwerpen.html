@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Ontwerp zelf je Bijvoets voordeur in 2D en 3D. Kies glasvakken, glaslatten, beslag, kleur en ontvang direct een fictieve prijsindicatie.">
+  <meta name="theme-color" content="#063b7a">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'">
+  <link rel="canonical" href="https://bijvoetsdeuren.nl/deur-ontwerpen.html">
+  <title>Deur ontwerpen | Bijvoets Deuren</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="pages.css?v=2">
+  <script src="script.js" defer></script>
+  <script src="door-designer.js?v=2" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Direct naar de inhoud</a>
+  <header class="site-header site-header-solid" id="top">
+    <div class="shell header-inner">
+      <a class="brand" href="index.html" aria-label="Bijvoets Deuren, naar de homepage"><span class="brand-mark" aria-hidden="true">BD</span><span class="brand-name"><strong>Bijvoets</strong><span>Deuren</span></span></a>
+      <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="main-nav"><span></span><span></span><span></span><span class="sr-only">Menu openen</span></button>
+      <nav class="main-nav" id="main-nav" aria-label="Hoofdnavigatie"><a href="index.html">Home</a><a href="diensten.html">Diensten</a><a href="werkwijze.html">Werkwijze</a><a href="over-ons.html">Over ons</a><a href="energielabel.html">Energielabel</a><a href="deur-ontwerpen.html" aria-current="page">Deur ontwerpen</a><a class="nav-cta" href="offerte.html">Offerte aanvragen</a></nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="page-hero designer-hero">
+      <div class="shell page-hero-grid">
+        <div class="reveal"><p class="eyebrow">2D / 3D deurontwerper</p><h1>Geef je voordeur zelf <em>vorm.</em></h1></div>
+        <p class="page-hero-intro reveal">Teken glasvakken, laat ze automatisch uitlijnen en kies glaslatten, kleur en beslag. De prijsindicatie verandert direct mee.</p>
+      </div>
+    </section>
+
+    <section class="designer-section" data-door-designer>
+      <div class="designer-shell">
+        <aside class="designer-controls" aria-label="Keuzes voor de deur">
+          <div class="designer-control-heading"><p class="eyebrow">Stap 1</p><h2>Stel je deur samen</h2><p>Begin met een voorbeeld of teken zelf één of meer glasvakken.</p></div>
+
+          <fieldset class="designer-fieldset">
+            <legend>Snel beginnen</legend>
+            <div class="preset-grid">
+              <button type="button" class="designer-choice is-active" data-preset="vlak"><span class="preset-icon preset-plain" aria-hidden="true"></span>Vlak</button>
+              <button type="button" class="designer-choice" data-preset="drievak"><span class="preset-icon preset-three" aria-hidden="true"></span>Drie vakken</button>
+              <button type="button" class="designer-choice" data-preset="glasstrook"><span class="preset-icon preset-strip" aria-hidden="true"></span>Glasstrook + stang</button>
+            </div>
+          </fieldset>
+
+          <fieldset class="designer-fieldset">
+            <legend>Deur en glas</legend>
+            <div class="designer-field-grid">
+              <label>Kleur
+                <select data-setting="doorFinish">
+                  <option value="grey">Grijze grondverf</option>
+                  <option value="white">Witte grondverf</option>
+                  <option value="anthracite">Antraciet afgelakt</option>
+                  <option value="custom">Kleur naar keuze</option>
+                </select>
+              </label>
+              <label>Glas
+                <select data-setting="glassTint">
+                  <option value="clear">Helder</option>
+                  <option value="frosted">Mat</option>
+                  <option value="smoke">Rookglas</option>
+                  <option value="bronze">Brons</option>
+                </select>
+              </label>
+              <label>Glaslatten
+                <select data-setting="beadStyle">
+                  <option value="modern">Modern vlak</option>
+                  <option value="classic">Klassiek profiel</option>
+                  <option value="steel">Slank aluminium</option>
+                </select>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset class="designer-fieldset">
+            <legend>Beslag</legend>
+            <div class="designer-field-grid">
+              <label>Type
+                <select data-setting="hardwareType">
+                  <option value="bar">Stang</option>
+                  <option value="knob">Knop</option>
+                  <option value="lever">Kruk</option>
+                </select>
+              </label>
+              <label>Materiaal
+                <select data-setting="hardwareFinish">
+                  <option value="steel">RVS</option>
+                  <option value="aluminium">Aluminium</option>
+                  <option value="black">Zwart</option>
+                  <option value="brass">Messing</option>
+                </select>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset class="designer-fieldset glass-tools">
+            <legend>Glasvakken</legend>
+            <div class="tool-buttons">
+              <button type="button" class="tool-button tool-button-primary" data-action="draw">Teken glasvak</button>
+              <button type="button" class="tool-button" data-action="duplicate">Dupliceer</button>
+              <button type="button" class="tool-button" data-action="delete">Verwijder</button>
+            </div>
+            <div class="tool-buttons">
+              <button type="button" class="tool-button" data-action="align">Lijn gelijk uit</button>
+              <button type="button" class="tool-button" data-action="distribute">Verdeel gelijk</button>
+            </div>
+            <label class="snap-toggle"><input type="checkbox" data-setting="snap" checked> Slim uitlijnen en gelijke marges</label>
+            <p class="designer-help" data-designer-help>Selecteer ‘Teken glasvak’ en sleep een rechthoek op de deur. De rode hulplijnen helpen met uitlijnen.</p>
+          </fieldset>
+
+          <fieldset class="designer-fieldset dimension-fields" data-dimensions disabled>
+            <legend>Geselecteerd glasvak</legend>
+            <div class="dimension-grid">
+              <label>Links <span>mm</span><input type="number" min="60" max="800" step="10" data-dimension="x"></label>
+              <label>Boven <span>mm</span><input type="number" min="60" max="1900" step="10" data-dimension="y"></label>
+              <label>Breed <span>mm</span><input type="number" min="120" max="800" step="10" data-dimension="width"></label>
+              <label>Hoog <span>mm</span><input type="number" min="120" max="1900" step="10" data-dimension="height"></label>
+            </div>
+          </fieldset>
+        </aside>
+
+        <div class="designer-workspace">
+          <div class="workspace-toolbar">
+            <div><strong>Voorbeeld</strong><span data-view-label>Vooraanzicht</span></div>
+            <div class="view-switch" aria-label="Weergave kiezen">
+              <button type="button" class="is-active" data-view="2d" aria-pressed="true">2D</button>
+              <button type="button" data-view="3d" aria-pressed="false">3D</button>
+            </div>
+          </div>
+
+          <div class="designer-stage" data-stage data-view="2d">
+            <div class="stage-grid" aria-hidden="true"></div>
+            <div class="door-preview" data-door-preview role="img" aria-label="Voorbeeld van de samengestelde deur">
+              <div class="door-surface" data-door-surface>
+                <div class="glass-layer" data-glass-layer></div>
+                <div class="door-hardware hardware-bar finish-steel" data-hardware aria-hidden="true"><span></span></div>
+                <div class="door-lock-edge" aria-hidden="true"></div>
+                <div class="snap-guide snap-guide-x" data-guide-x aria-hidden="true"></div>
+                <div class="snap-guide snap-guide-y" data-guide-y aria-hidden="true"></div>
+              </div>
+              <div class="door-depth" aria-hidden="true"></div>
+            </div>
+            <p class="stage-instruction" data-stage-instruction>Sleep een glasvak om het te verplaatsen. Sleep de hoek om het formaat te wijzigen.</p>
+          </div>
+
+          <div class="designer-summary" aria-live="polite">
+            <div><span>Indicatie vanaf</span><strong data-total-price>€ 1.790</strong><small>Fictieve prijs, inclusief btw en exclusief montage.</small></div>
+            <dl><div><dt>Deur</dt><dd data-summary-door>Grijze grondverf</dd></div><div><dt>Glas</dt><dd data-summary-glass>Geen glasvakken</dd></div><div><dt>Beslag</dt><dd data-summary-hardware>Stang · RVS</dd></div></dl>
+            <a class="button button-primary designer-whatsapp" data-designer-whatsapp href="https://wa.me/31638569988" target="_blank" rel="noopener noreferrer">Bespreek dit ontwerp</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section designer-explainer">
+      <div class="shell">
+        <div class="section-heading reveal"><div><p class="eyebrow">Slim uitlijnen</p><h2>Vrij ontwerpen, zonder scheve details.</h2></div><p>De ontwerper helpt glasvakken en beslag op logische lijnen te plaatsen. Bij de glasstrook worden bovenmarge en sluitkant automatisch gelijk gehouden en komt de stang netjes tussen glaslijn en sluitzijde.</p></div>
+        <div class="value-grid"><article class="value-card reveal"><span>01</span><h3>Teken ieder formaat</h3><p>Maak zelf een vierkant, smalle strook of royaal glasvlak en pas de maat direct aan.</p></article><article class="value-card reveal"><span>02</span><h3>Meerdere glasvakken</h3><p>Dupliceer een vak en laat de tussenruimte automatisch gelijk verdelen.</p></article><article class="value-card reveal"><span>03</span><h3>Van idee naar advies</h3><p>Stuur de gekozen samenstelling via WhatsApp. Definitieve maatvoering en prijs volgen na controle.</p></article></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="shell footer-main"><div><a class="brand brand-footer" href="index.html"><span class="brand-mark" aria-hidden="true">BD</span><span class="brand-name"><strong>Bijvoets</strong><span>Deuren</span></span></a><p>Dé deurenspecialist van Nederland. Veilig, weerbestendig en gemaakt om iedere dag goed te functioneren.</p></div><div><h2>Website</h2><a href="diensten.html">Diensten</a><a href="werkwijze.html">Werkwijze</a><a href="over-ons.html">Over ons</a><a href="energielabel.html">Energielabel</a><a href="deur-ontwerpen.html">Deur ontwerpen</a></div><div><h2>Contact</h2><p>Werkgebied: heel Nederland</p><a href="mailto:quintbijvoets@hotmail.com">quintbijvoets@hotmail.com</a><a href="offerte.html">Offerte aanvragen</a></div></div>
+    <div class="shell footer-bottom"><p>© <span data-current-year></span> Bijvoets Deuren</p><a href="privacy.html">Privacy</a></div>
+  </footer>
+</body>
+</html>
