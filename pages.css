@@ -1317,4 +1317,3 @@ h1 em {
   .tool-buttons { grid-template-columns: 1fr; }
   .tool-buttons + .tool-buttons { grid-template-columns: 1fr 1fr; }
 }
-
